@@ -52,12 +52,6 @@ class NbowModel:
         res = self.cv.transform(X).toarray()
         return self.model.predict(res)
 
-    def predict_proba(self, X):
-        print(X.shape)
-        print(X[0])
-        res = self.cv.transform(X).toarray()
-        return self.model.predict_proba(res)
-
     def eval_acc(self, X, labels, threshold=0.5):
         return accuracy_score(labels, self.predict(X) > threshold)
 

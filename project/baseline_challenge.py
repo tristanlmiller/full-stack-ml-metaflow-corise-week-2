@@ -58,7 +58,9 @@ class BaselineChallenge(FlowSpec):
 
         # split the data 80/20, or by using the flow's split-sz CLI argument
         _df = pd.DataFrame({"review": reviews, "label": labels})
-        self.traindf, self.valdf = train_test_split(_df, test_size=self.split_size)
+        traindf, valdf = train_test_split(_df, test_size=self.split_size)
+        self.traindf = traindf.reset_index(drop=True)
+        self.valdf = valdf.reset_index(drop=True)
         print(f"num of rows in train set: {self.traindf.shape[0]}")
         print(f"num of rows in validation set: {self.valdf.shape[0]}")
 
@@ -81,6 +83,7 @@ class BaselineChallenge(FlowSpec):
 
         # DONE: return the roc_auc_score of these predictions
         rocauc = roc_auc_score(self.valdf["label"], predictions)
+        print("Baseline", params, pathspec, acc, rocauc)
         self.result = ModelResult("Baseline", params, pathspec, acc, rocauc)
         self.next(self.aggregate)
 
@@ -88,6 +91,7 @@ class BaselineChallenge(FlowSpec):
     def model(self):
         # DONE: import your model if it is defined in another file.
         from model import NbowModel
+        from sklearn.metrics import accuracy_score, roc_auc_score
 
         self._name = "model"
         # NOTE: If you followed the link above to find a custom model implementation,
@@ -99,13 +103,18 @@ class BaselineChallenge(FlowSpec):
         self.results = []
         for params in self.hyperparam_set:
             model = NbowModel(**params)  # DONE: instantiate your custom model here!
+
             model.fit(X=self.traindf["review"], y=self.traindf["label"])
-            # DONE: evaluate your custom model in an equivalent way to accuracy_score.
-            predictions = model.predict(self.valdf['review'])
+            predictions = model.predict(self.valdf['review'])>0.5
             acc = accuracy_score(self.valdf["label"], predictions)
-            # DONE: evaluate your custom model in an equivalent way to roc_auc_score.
-            scores = model.predict_proba(self.valdf['review'])[:,1]
+            scores = model.predict(self.valdf['review'])
             rocauc = roc_auc_score(self.valdf["label"], scores)
+            
+            print(f"NbowModel - vocab_sz: {params['vocab_sz']}",
+                    params,
+                    pathspec,
+                    acc,
+                    rocauc,)
             self.results.append(
                 ModelResult(
                     f"NbowModel - vocab_sz: {params['vocab_sz']}",
