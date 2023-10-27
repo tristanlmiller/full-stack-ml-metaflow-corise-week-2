@@ -127,8 +127,64 @@ class BaselineChallenge(FlowSpec):
 
         self.next(self.aggregate)
 
+    def add_one(self, rows, result, df):
+        "A helper function to load results."
+        rows.append(
+            [
+                Markdown(result.name),
+                Artifact(result.params),
+                Artifact(result.pathspec),
+                Artifact(result.acc),
+                Artifact(result.rocauc),
+            ]
+        )
+        df["name"].append(result.name)
+        df["accuracy"].append(result.acc)
+        return rows, df
+
+    @card(type='corise')  # DONE: Set your card type to "corise".
+    # I wonder what other card types there are?
+    # https://docs.metaflow.org/metaflow/visualizing-results
+    # https://github.com/outerbounds/metaflow-card-altair/blob/main/altairflow.py
     @step
-    def aggregate(self,inputs):
+    def aggregate(self, inputs):
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        from matplotlib import rcParams
+
+        rcParams.update({"figure.autolayout": True})
+
+        rows = []
+        violin_plot_df = {"name": [], "accuracy": []}
+        for task in inputs:
+            if task._name == "model":
+                for result in task.results:
+                    print(result)
+                    rows, violin_plot_df = self.add_one(rows, result, violin_plot_df)
+            elif task._name == "baseline":
+                print(task.result)
+                rows, violin_plot_df = self.add_one(rows, task.result, violin_plot_df)
+            else:
+                raise ValueError("Unknown task._name type. Cannot parse results.")
+
+        current.card.append(Markdown("# All models from this flow run"))
+
+        # DONE: Add a Table of the results to your card!
+        current.card.append(
+            Table(data=rows,
+                headers=["Model name", "Params", "Task pathspec", "Accuracy", "ROCAUC"],
+            )
+        )
+
+        fig, ax = plt.subplots(1, 1)
+        plt.xticks(rotation=40)
+        sns.violinplot(data=violin_plot_df, x="name", y="accuracy", ax=ax)
+
+        # DONE: Append the matplotlib fig to the card
+        current.card.append(Image.from_matplotlib(fig))
+
+        # Docs: https://docs.metaflow.org/metaflow/visualizing-results/easy-custom-reports-with-card-components#showing-plots
+
         self.next(self.end)
 
     @step
